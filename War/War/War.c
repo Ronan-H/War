@@ -2,6 +2,7 @@
 #include<string.h>;
 
 // function declarations
+const char * getCardName(struct Card card);
 void initPlayers(struct Player players[], int numPlayers);
 void displayPlayerDeck(struct Player player, int playerNum);
 
@@ -52,17 +53,33 @@ const char * SUIT_NAMES[] = {
 	"Spades"
 };
 
+// Converts a card value and suit to it's full name
+// e.g. 11, 3 -> Jack of Spades
+const char * getCardName(struct Card card) {
+	char *cardName = (char*)malloc(18 * sizeof(char));
+	sprintf(cardName, "%s of %s", FACE_NAMES[card.value], SUIT_NAMES[card.suit]);
+	return cardName;
+}
+
 void main() {
 	// variables
 	int numPlayers;
 	int roundNum;
 	int playerTurn;
-	int cardChoice;
+	int chosenCard;
 	//The cards chosen by the players to be played for a round.
 	struct Card chosenCards[10];
-	int i;
+	int i, j;
 	// The array of players. Only indexes up to (numPlayers - 1 ) to be used.
 	struct Player players[10];
+	int cardNum;
+	int numPlayersWithCard;
+	int cardValue;
+	int highestCard;
+	int roundWinner;
+	int roundWinnings;
+	// points carried over to the next round (because of a tie)
+	int carryPoints = 0;
 
 	printf("\nWar - By Ronan Hanley\n\n");
 	printf("Enter number of players playing (2-10): ");
@@ -75,17 +92,94 @@ void main() {
 		printf("-- Round %d --\n\n", roundNum);
 
 		for (playerTurn = 0; playerTurn < numPlayers; ++playerTurn) {
-			printf("Player %d's turn to choose a card.\n\n");
+			printf("Player %d, it's your turn to choose a card.\n\n", (playerTurn + 1));
 			displayPlayerDeck(players[playerTurn], playerTurn);
 
 			printf("Pick a card to play. Enter it's index (from above): ");
-			scanf("%d", &cardChoice);
+			scanf("%d", &chosenCard);
 
 			// print many newlines to hide the cards of this player from the other players
-			for (i = 0; i < 0; ++i) printf("\n");
+			for (i = 0; i < 50; ++i) printf("\n");
 
-			
+			// add the player's card to the competing cards for this round
+			chosenCards[playerTurn] = players[playerTurn].deck[chosenCard];
+
+			// remove that card from the player's hand
+			players[playerTurn].deck[chosenCard].suit = -1;
+			players[playerTurn].deck[chosenCard].value = -1;
 		}
+
+		// show the cards the players chose
+		printf("\n");
+		for (i = 0; i < numPlayers; ++i) {
+			printf("Player %d chose %s.\n", (i + 1), getCardName(chosenCards[i]));
+		}
+		printf("\n");
+
+		// find the player with the highest unique card
+		roundWinner = -1;
+		highestCard = -1;
+		for (i = 14; i >= 0; i--) {
+			numPlayersWithCard = 0;
+
+			for (int j = 0; j < numPlayers; ++j) {
+				int cardValue = chosenCards[j].value;
+
+				if (cardValue == i) {
+					++numPlayersWithCard;
+					highestCard = cardValue;
+
+					if (numPlayersWithCard > 1) {
+						// skip to the next lowest card
+						break;
+					}
+				}
+			}
+
+			if (numPlayersWithCard == 1) {
+				roundWinner = i;
+				break;
+			}
+		}
+
+		// calculate the winnings for this round
+		roundWinnings = 0;
+		for (i = 0; i < numPlayers; ++i) {
+			roundWinnings += chosenCards[i].value;
+		}
+
+		if (roundWinner == -1) {
+			// tie
+			printf("It's a tie! No winners this round.\n");
+
+			if (carryPoints == -1) {
+				printf("This round's winnings of %d points will be carried over to the next round.\n", roundWinnings);
+			}
+			else {
+				printf("This is the second tie in a row!\n");
+				printf("%d points from last round plus %d points from this round (a total of %d points are lost on the battlefield!\n",
+					roundWinnings, carryPoints, (roundWinnings + carryPoints));
+				carryPoints = 0;
+			}
+		}
+		else {
+			// winner found
+			printf("Player %d wins the round!\n", (roundWinner + 1));
+			printf("Card value won with: %d\n", highestCard);
+			printf("Points awarded (all chosen card values added together): %d", roundWinnings);
+
+			if (carryPoints != 0) {
+				printf(" + %d points carried over from the last round.", carryPoints);
+			}
+
+			printf("\n\n");
+
+			printf("Press enter to continue to the next round.");
+			getch();
+			printf("\n");
+		}
+
+		printf("\n");
 	}
 }
 
@@ -109,7 +203,12 @@ void displayPlayerDeck(struct Player player, int playerNum) {
 
 	printf("Your cards, player %d:\n", playerNum + 1);
 	for (i = 0; i < 13; ++i) {
-		printf("- Card [%d]: %s of %s\n", (i + 1), FACE_NAMES[player.deck[i].value], SUIT_NAMES[player.deck[i].suit]);
+		if (player.deck[i].value == -1) {
+			printf("<card already used>\n");
+		}
+		else {
+			printf("- Card [%d]: %s\n", (i + 1), getCardName(player.deck[i]));
+		}
 	}
 
 	printf("\n");
