@@ -21,15 +21,15 @@ struct Card {
 
 struct Player {
 	struct Card deck[13];
-	int numRoundsWon;
+	int points;
 };
 
 
 // used to translate card indexes to the face of the card easily
 const char *  FACE_NAMES[] = {
 	// note cards 0 and 1 do not exist
-	"",
-	"",
+	"<invalid card value>",
+	"<invalid card value>",
 	"2",
 	"3",
 	"4",
@@ -76,10 +76,14 @@ void main() {
 	int numPlayersWithCard;
 	int cardValue;
 	int highestCard;
+	int playerWithCard = -1;
 	int roundWinner;
 	int roundWinnings;
 	// points carried over to the next round (because of a tie)
 	int carryPoints = 0;
+	int playerPoints;
+	int highestPoints;
+	int highestPointsPlayer;
 
 	printf("\nWar - By Ronan Hanley\n\n");
 	printf("Enter number of players playing (2-10): ");
@@ -92,11 +96,13 @@ void main() {
 		printf("-- Round %d --\n\n", roundNum);
 
 		for (playerTurn = 0; playerTurn < numPlayers; ++playerTurn) {
-			printf("Player %d, it's your turn to choose a card.\n\n", (playerTurn + 1));
+			printf("Player %d, it's your turn to choose a card.\n", (playerTurn + 1));
 			displayPlayerDeck(players[playerTurn], playerTurn);
 
 			printf("Pick a card to play. Enter it's index (from above): ");
 			scanf("%d", &chosenCard);
+			//  convert face value to index
+			chosenCard -= 2;
 
 			// print many newlines to hide the cards of this player from the other players
 			for (i = 0; i < 50; ++i) printf("\n");
@@ -126,6 +132,7 @@ void main() {
 				int cardValue = chosenCards[j].value;
 
 				if (cardValue == i) {
+					playerWithCard = j;
 					++numPlayersWithCard;
 					highestCard = cardValue;
 
@@ -137,7 +144,7 @@ void main() {
 			}
 
 			if (numPlayersWithCard == 1) {
-				roundWinner = i;
+				roundWinner = playerWithCard;
 				break;
 			}
 		}
@@ -152,12 +159,13 @@ void main() {
 			// tie
 			printf("It's a tie! No winners this round.\n");
 
-			if (carryPoints == -1) {
-				printf("This round's winnings of %d points will be carried over to the next round.\n", roundWinnings);
+			if (carryPoints == 0) {
+				printf("This round's pot of %d points will be carried over to the next round.\n", roundWinnings);
+				carryPoints = roundWinnings;
 			}
 			else {
 				printf("This is the second tie in a row!\n");
-				printf("%d points from last round plus %d points from this round (a total of %d points are lost on the battlefield!\n",
+				printf("%d points from last round plus %d points from this round (a total of %d) points are lost on the battlefield!\n",
 					roundWinnings, carryPoints, (roundWinnings + carryPoints));
 				carryPoints = 0;
 			}
@@ -166,21 +174,45 @@ void main() {
 			// winner found
 			printf("Player %d wins the round!\n", (roundWinner + 1));
 			printf("Card value won with: %d\n", highestCard);
-			printf("Points awarded (all chosen card values added together): %d", roundWinnings);
+			printf("Points awarded (all chosen card values added together): %d\n", roundWinnings);
 
 			if (carryPoints != 0) {
-				printf(" + %d points carried over from the last round.", carryPoints);
+				printf(" + %d points carried over from the last round,\n", carryPoints);
+				printf(" for a total of %d points.\n", (carryPoints + roundWinnings));
 			}
 
-			printf("\n\n");
+			// add points
+			players[roundWinner].points = (roundWinnings + carryPoints);
+			carryPoints = 0;
 
-			printf("Press enter to continue to the next round.");
-			getch();
-			printf("\n");
+			printf("\n\n");
 		}
+
+		if (i != 13) {
+			printf("Press any key to continue to the next round.\n");
+			getch();
+		}
+		printf("\n");
 
 		printf("\n");
 	}
+
+
+	printf("-- Game finished! --\n\n");
+	printf("Final scores:\n");
+
+	for (i = 0; i < numPlayers; ++i) {
+		playerPoints = players[i].points;
+		printf("Player %d: %d points.\n", (i + 1), playerPoints);
+
+		// find the winner at the same time
+		if (i == 0 || playerPoints > highestPoints) {
+			highestPoints = playerPoints;
+			highestPointsPlayer = i;
+		}
+	}
+
+	printf("\nPlayer %d wins!\n\n", (highestPointsPlayer + 1));
 }
 
 void initPlayers(struct Player players[], int numPlayers) {
@@ -195,6 +227,8 @@ void initPlayers(struct Player players[], int numPlayers) {
 			// no random suit for now; to be updated later
 			players[i].deck[j].suit = 0;
 		}
+
+		players[i].points = 0;
 	}
 }
 
@@ -207,7 +241,7 @@ void displayPlayerDeck(struct Player player, int playerNum) {
 			printf("<card already used>\n");
 		}
 		else {
-			printf("- Card [%d]: %s\n", (i + 1), getCardName(player.deck[i]));
+			printf("- Card [%d]: %s\n", (i + 2), getCardName(player.deck[i]));
 		}
 	}
 
