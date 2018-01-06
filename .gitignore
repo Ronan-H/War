@@ -12,7 +12,6 @@ War/War/War.vcxproj
 *.idb
 War/War/Debug/vc141.pdb
 *.tlog
-*.txt
 War/War/targetver.h
 *.pch
 War/War/Debug/War.log
@@ -20,3 +19,4 @@ War/War/Debug/War.log
 *.user
 War/War/War.vcxproj.filters
 *.h
+War/War/ReadMe.txt

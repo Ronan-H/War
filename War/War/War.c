@@ -1,5 +1,6 @@
 #include<stdio.h>;
 #include<string.h>;
+#include <stdbool.h>;
 
 // function declarations
 const char * getCardName(struct Card card);
@@ -217,16 +218,38 @@ void main() {
 
 void initPlayers(struct Player players[], int numPlayers) {
 	int i, j;
+	int s;
+	bool hasEachSuit;
+
+	// prepare for random number generation
+	srand(time(NULL));
 
 	for (i = 0; i < numPlayers; ++i) {
-		// initialize the cards (2 -> 13)
+		// initialize the values (2 -> 13)
 		for (j = 0; j < 13; ++j) {
 			players[i].deck[j].value = j + 2;
-
-			// initialize the suit
-			// no random suit for now; to be updated later
-			players[i].deck[j].suit = 0;
 		}
+
+		do {
+			for (j = 0; j < 13; ++j) {
+				// initialize the suit
+				players[i].deck[j].suit = rand() % 4;
+			}
+
+			// redo all the suits if the player doesn't have one of each suit
+			hasEachSuit = true;
+			for (s = 0; s < 4; ++s) {
+				for (j = 0; j < 13; ++j) {
+					if (players[i].deck[j].suit == s) goto skip;
+				}
+
+				// suit not found
+				hasEachSuit = false;
+				break;
+
+				skip:;
+			}
+		} while (!hasEachSuit);
 
 		players[i].points = 0;
 	}
