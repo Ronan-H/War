@@ -1,6 +1,6 @@
-#include<stdio.h>;
-#include<string.h>;
-#include <stdbool.h>;
+#include<stdio.h>
+#include<string.h>
+#include <stdbool.h>
 
 // function declarations
 const char * getCardName(struct Card card);
@@ -71,7 +71,7 @@ void main() {
 	int chosenCard;
 	//The cards chosen by the players to be played for a round.
 	struct Card chosenCards[10];
-	int i, j;
+	int i, j, k;
 	// The array of players. Only indexes up to (numPlayers - 1 ) to be used.
 	struct Player players[10];
 	int cardNum;
@@ -88,8 +88,29 @@ void main() {
 	int highestPointsPlayer;
 	char optionsInput[10];
 	char option;
+	FILE *metaFile;
+	FILE *newSaveFile;
+	int fileVar;
+	int nextSaveID;
+	char filename[20];
 
 	printf("\nWar - By Ronan Hanley\n\n");
+
+	printf("Do you want to...\n");
+	printf("[1] Start a new game\n");
+	printf("...or...\n");
+	printf("[2] Continue from a previously saved game?\n");
+	option = getch();
+
+	switch (option) {
+	case 1:
+
+		break;
+	case 2:
+
+		break;
+	}
+
 	printf("Enter number of players playing (2-10): ");
 	scanf("%d", &numPlayers);
 	printf("\n");
@@ -209,6 +230,37 @@ void main() {
 			switch (option) {
 			case 's':
 				// save game
+				metaFile = fopen("war_metadata.dat", "r");
+				if (metaFile) {
+					// file exists; check number of saves
+					fscanf(metaFile, "%d", &nextSaveID);
+					++nextSaveID;
+					fclose(metaFile);
+				}
+				else {
+					// file doesn't exist
+					nextSaveID = 0;
+				}
+
+				sprintf(filename, "war_gamesave%d.dat", nextSaveID);
+				newSaveFile = fopen(filename, "w");
+
+				fprintf(newSaveFile, "%d\n", (roundNum + 1));
+				fprintf(newSaveFile, "%d\n", carryPoints);
+
+				// save each player's data
+				for (j = 0; j < numPlayers; ++j) {
+					for (k = 0; k < 13; ++k) {
+						fprintf(newSaveFile, "%d %d, ", players[j].deck[k].value, players[j].deck[k].suit);
+					}
+					fprintf(newSaveFile, "\n%d\n", players[j].points);
+				}
+
+				fclose(newSaveFile);
+
+				printf("Game successfully saved for later use.\n");
+				printf("Exiting.\n\n");
+				goto endOfGame;
 				break;
 			case 'o':
 				// output current status of the game
