@@ -6,6 +6,7 @@
 const char * getCardName(struct Card card);
 void initPlayers(struct Player players[], int numPlayers);
 void displayPlayerDeck(struct Player player, int playerNum);
+void displayScores(struct Player players[], int numPlayers);
 
 struct Card {
 	/*
@@ -85,6 +86,8 @@ void main() {
 	int playerPoints;
 	int highestPoints;
 	int highestPointsPlayer;
+	char optionsInput[10];
+	char option;
 
 	printf("\nWar - By Ronan Hanley\n\n");
 	printf("Enter number of players playing (2-10): ");
@@ -117,7 +120,7 @@ void main() {
 		}
 
 		// show the cards the players chose
-		printf("\n");
+		printf("-- Showdown! --\n");
 		for (i = 0; i < numPlayers; ++i) {
 			printf("Player %d chose %s.\n", (i + 1), getCardName(chosenCards[i]));
 		}
@@ -185,35 +188,64 @@ void main() {
 			// add points
 			players[roundWinner].points = (roundWinnings + carryPoints);
 			carryPoints = 0;
-
-			printf("\n\n");
 		}
+
+		printf("\n");
 
 		if (i != 13) {
-			printf("Press any key to continue to the next round.\n");
-			getch();
-		}
-		printf("\n");
+			printf("Press enter to continue to the next round.\n\n");
+			printf(" (more options:\n");
+			printf("  's' to save the game to be played at a later time\n");
+			printf("  'o' to output the current status of the game\n");
+			printf("  'e' to exit the game now without saving)\n\n");
 
-		printf("\n");
+			//scanf(" %c", &option);
+
+			//scanf(" %5[^\n]", optionsInput);
+			//option = optionsInput[0];
+
+			option = getch();
+
+			switch (option) {
+			case 's':
+				// save game
+				break;
+			case 'o':
+				// output current status of the game
+				printf("Rounds completed: %d/13\n", roundNum);
+				displayScores(players, numPlayers);
+				printf("\nPress any key to continue to the next round...");
+				getch();
+				break;
+			case 'e':
+				// exit the game without saving
+				goto endOfGame;
+				break;
+			}
+		}
+		printf("\n\n");
 	}
 
 
 	printf("-- Game finished! --\n\n");
 	printf("Final scores:\n");
 
+	// TODO: account for ties
+
 	for (i = 0; i < numPlayers; ++i) {
 		playerPoints = players[i].points;
-		printf("Player %d: %d points.\n", (i + 1), playerPoints);
 
-		// find the winner at the same time
 		if (i == 0 || playerPoints > highestPoints) {
 			highestPoints = playerPoints;
 			highestPointsPlayer = i;
 		}
 	}
 
+	displayScores(players, numPlayers);
+
 	printf("\nPlayer %d wins!\n\n", (highestPointsPlayer + 1));
+
+	endOfGame:;
 }
 
 void initPlayers(struct Player players[], int numPlayers) {
@@ -269,4 +301,12 @@ void displayPlayerDeck(struct Player player, int playerNum) {
 	}
 
 	printf("\n");
+}
+
+void displayScores(struct Player players[], int numPlayers) {
+	int i;
+
+	for (i = 0; i < numPlayers; ++i) {
+		printf("Player %d: %d points.\n", (i + 1), players[i].points);
+	}
 }
