@@ -7,6 +7,8 @@ const char * getCardName(struct Card card);
 void initPlayers(struct Player players[], int numPlayers);
 void displayPlayerDeck(struct Player player, int playerNum);
 void displayScores(struct Player players[], int numPlayers);
+int getMetadataIndex();
+void incrementMetadataIndex();
 
 struct Card {
 	/*
@@ -65,7 +67,7 @@ const char * getCardName(struct Card card) {
 
 void main() {
 	// variables
-	int numPlayers;
+	int numPlayers = -1;
 	int roundNum;
 	int playerTurn;
 	int chosenCard;
@@ -88,11 +90,16 @@ void main() {
 	int highestPointsPlayer;
 	char optionsInput[10];
 	char option;
-	FILE *metaFile;
-	FILE *newSaveFile;
+	FILE *saveFile;
 	int fileVar;
 	int nextSaveID;
+	int metadataIndex;
 	char filename[20];
+	bool savesFound = false;
+	int saveFileRoundNum;
+	int saveFileNumPlayers;
+	int saveFilePlayerScore;
+	int saveFileChosen;
 
 	printf("\nWar - By Ronan Hanley\n\n");
 
@@ -101,21 +108,80 @@ void main() {
 	printf("...or...\n");
 	printf("[2] Continue from a previously saved game?\n");
 	option = getch();
+	printf("\n");
 
 	switch (option) {
-	case 1:
+	case '2':
 
-		break;
-	case 2:
+		// read info about the saved games from the metadata file
+		// (to give the user a choice for which save game to load)
+		metadataIndex = getMetadataIndex();
 
+		for (i = 0; i < metadataIndex; ++i) {
+			// check if a save file exists for this index
+			sprintf(filename, "war_gamesave%d.dat", i);
+			saveFile = fopen(filename, "r");
+
+			if (saveFile) {
+				// save file exists, offer it to the player
+				savesFound = true;
+				printf("Save file %d:\n", (i + 1));
+				fscanf(saveFile, "%d\n", &saveFileRoundNum);
+				fscanf(saveFile, "%d\n", &saveFileNumPlayers);
+				// disgard carry points
+				fscanf(saveFile, "%*d\n");
+				printf("Number of players: %d\n", saveFileNumPlayers);
+				printf("Last round completed: round %d\n", saveFileRoundNum);
+				for (j = 0; j < saveFileNumPlayers; ++j) {
+					// discard the player's hand
+					fscanf(saveFile, "%*99[^\n]");
+					fscanf(saveFile, "%d\n", &saveFilePlayerScore);
+					printf("Player %d had a score of %d.\n", (j + 1), saveFilePlayerScore);
+				}
+
+				fclose(saveFile);
+			}
+		}
+
+		if (savesFound) {
+			printf("\nEnter a save file number to load it: ");
+			scanf("%d", &saveFileChosen);
+			printf("\nContinuing on from save file %d.\n", saveFileChosen);
+
+			// load in that save file's variables
+			sprintf(filename, "war_gamesave%d.dat", (saveFileChosen - 1));
+			saveFile = fopen(filename, "r");
+
+			printf("1");
+
+			fscanf(saveFile, "%d\n", &roundNum);
+			fscanf(saveFile, "%d\n", &numPlayers);
+			fscanf(saveFile, "%d\n", &carryPoints);
+			for (j = 0; j < numPlayers; ++j) {
+				printf("%d ", j);
+				for (k = 0; k < 13; ++k) {
+					fscanf(saveFile, "%d %d, ", &players[j].deck[k].value, &players[j].deck[k].suit);
+				}
+				fscanf(saveFile, "\n%d\n", &players[j].points);
+			}
+
+			fclose(saveFile);
+		}
+		else {
+			printf("No save files found. Starting a new game...\n");
+		}
+
+		printf("\n");
 		break;
 	}
 
-	printf("Enter number of players playing (2-10): ");
-	scanf("%d", &numPlayers);
+	if (numPlayers == -1) {
+		// no save file read; start a new game
+		printf("Enter number of players playing (2-10): ");
+		scanf("%d", &numPlayers);
+		initPlayers(players, numPlayers);
+	}
 	printf("\n");
-
-	initPlayers(players, numPlayers);
 
 	for (roundNum = 1; roundNum <= 13; ++roundNum) {
 		printf("-- Round %d --\n\n", roundNum);
@@ -220,43 +286,30 @@ void main() {
 			printf("  'o' to output the current status of the game\n");
 			printf("  'e' to exit the game now without saving)\n\n");
 
-			//scanf(" %c", &option);
-
-			//scanf(" %5[^\n]", optionsInput);
-			//option = optionsInput[0];
-
 			option = getch();
 
 			switch (option) {
 			case 's':
 				// save game
-				metaFile = fopen("war_metadata.dat", "r");
-				if (metaFile) {
-					// file exists; check number of saves
-					fscanf(metaFile, "%d", &nextSaveID);
-					++nextSaveID;
-					fclose(metaFile);
-				}
-				else {
-					// file doesn't exist
-					nextSaveID = 0;
-				}
+				nextSaveID = getMetadataIndex();
 
 				sprintf(filename, "war_gamesave%d.dat", nextSaveID);
-				newSaveFile = fopen(filename, "w");
+				saveFile = fopen(filename, "w");
 
-				fprintf(newSaveFile, "%d\n", (roundNum + 1));
-				fprintf(newSaveFile, "%d\n", carryPoints);
+				fprintf(saveFile, "%d\n", (roundNum + 1));
+				fprintf(saveFile, "%d\n", numPlayers);
+				fprintf(saveFile, "%d\n", carryPoints);
 
 				// save each player's data
 				for (j = 0; j < numPlayers; ++j) {
 					for (k = 0; k < 13; ++k) {
-						fprintf(newSaveFile, "%d %d, ", players[j].deck[k].value, players[j].deck[k].suit);
+						fprintf(saveFile, "%d %d, ", players[j].deck[k].value, players[j].deck[k].suit);
 					}
-					fprintf(newSaveFile, "\n%d\n", players[j].points);
+					fprintf(saveFile, "\n%d\n", players[j].points);
 				}
 
-				fclose(newSaveFile);
+				fclose(saveFile);
+				incrementMetadataIndex();
 
 				printf("Game successfully saved for later use.\n");
 				printf("Exiting.\n\n");
@@ -361,4 +414,44 @@ void displayScores(struct Player players[], int numPlayers) {
 	for (i = 0; i < numPlayers; ++i) {
 		printf("Player %d: %d points.\n", (i + 1), players[i].points);
 	}
+}
+
+/*
+	Retrieves a single integer from the metadata file.
+	The integer is a counter for how many game saves have been created.
+	We can go from 0 to the counter when looking for save game files.
+*/
+int getMetadataIndex() {
+	FILE *metaFile;
+	int index;
+
+	metaFile = fopen("war_metadata.dat", "r");
+	if (metaFile) {
+		// file exists; check number of saves
+		fscanf(metaFile, "%d", &index);
+		fclose(metaFile);
+	}
+	else {
+		// file doesn't exist
+		index = 0;
+	}
+
+	return index;
+}
+
+void incrementMetadataIndex() {
+	FILE *metaFile;
+
+	int metadataIndex = getMetadataIndex();
+	metaFile = fopen("war_metadata.dat", "w");
+
+	if (metaFile == NULL) {
+		printf("Failed to open metadata file for writing.\n");
+		printf("Exiting...\n\n");
+		exit(1);
+	}
+
+	fprintf(metaFile, "%d", (metadataIndex + 1));
+
+	fclose(metaFile);
 }
