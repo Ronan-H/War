@@ -9,6 +9,7 @@ void displayPlayerDeck(struct Player player, int playerNum);
 void displayScores(struct Player players[], int numPlayers);
 int getMetadataIndex();
 void incrementMetadataIndex();
+void deleteSave(int saveNum);
 
 struct Card {
 	/*
@@ -49,7 +50,7 @@ const char *  FACE_NAMES[] = {
 	"Ace"
 };
 
-// used to translate suit numberes to names easily
+// used to translate suit numbers to names easily
 const char * SUIT_NAMES[] = {
 	"Clubs",
 	"Diamonds",
@@ -67,7 +68,7 @@ const char * getCardName(struct Card card) {
 
 void main() {
 	// variables
-	int numPlayers = -1;
+	int numPlayers;
 	int roundNum;
 	int playerTurn;
 	int chosenCard;
@@ -80,11 +81,11 @@ void main() {
 	int numPlayersWithCard;
 	int cardValue;
 	int highestCard;
-	int playerWithCard = -1;
+	int playerWithCard;
 	int roundWinner;
 	int roundWinnings;
 	// points carried over to the next round (because of a tie)
-	int carryPoints = 0;
+	int carryPoints;
 	int playerPoints;
 	int highestPoints;
 	int highestPointsPlayer;
@@ -99,20 +100,31 @@ void main() {
 	int saveFileRoundNum;
 	int saveFileNumPlayers;
 	int saveFilePlayerScore;
+	int saveFileCarryPoints;
 	int saveFileChosen;
+	int numPlayersSamePoints;
+	int winners[10];
+	int winnerCounter;
 
-	printf("\nWar - By Ronan Hanley\n\n");
+	printf("\n -= War - By Ronan Hanley =-\n\n");
+
+	gameOptions:;
+	// initialize some variables
+	saveFileChosen = -1;
+	carryPoints = 0;
+	playerWithCard = -1;
+	numPlayers = -1;
+
 
 	printf("Do you want to...\n");
 	printf("[1] Start a new game\n");
-	printf("...or...\n");
-	printf("[2] Continue from a previously saved game?\n");
+	printf("[2] Continue from a previously saved game\n");
+	printf("[3] Exit now\n");
 	option = getch();
 	printf("\n");
 
 	switch (option) {
 	case '2':
-
 		// read info about the saved games from the metadata file
 		// (to give the user a choice for which save game to load)
 		metadataIndex = getMetadataIndex();
@@ -128,16 +140,19 @@ void main() {
 				printf("Save file %d:\n", (i + 1));
 				fscanf(saveFile, "%d\n", &saveFileRoundNum);
 				fscanf(saveFile, "%d\n", &saveFileNumPlayers);
-				// disgard carry points
-				fscanf(saveFile, "%*d\n");
+				fscanf(saveFile, "%d\n", &saveFileCarryPoints);
 				printf("Number of players: %d\n", saveFileNumPlayers);
-				printf("Last round completed: round %d\n", saveFileRoundNum);
+				// must decrement by 1 since the file represents where to start from (i.e. the next round, not the last)
+				printf("Last round completed: round %d\n", (saveFileRoundNum - 1));
+				printf("Extra points (from tied rounds): %d\n", saveFileCarryPoints);
 				for (j = 0; j < saveFileNumPlayers; ++j) {
 					// discard the player's hand
+					// (discards up to 99 characters until \n is reached)
 					fscanf(saveFile, "%*99[^\n]");
 					fscanf(saveFile, "%d\n", &saveFilePlayerScore);
 					printf("Player %d had a score of %d.\n", (j + 1), saveFilePlayerScore);
 				}
+				printf("\n");
 
 				fclose(saveFile);
 			}
@@ -147,18 +162,16 @@ void main() {
 			printf("\nEnter a save file number to load it: ");
 			scanf("%d", &saveFileChosen);
 			printf("\nContinuing on from save file %d.\n", saveFileChosen);
+			--saveFileChosen;
 
 			// load in that save file's variables
-			sprintf(filename, "war_gamesave%d.dat", (saveFileChosen - 1));
+			sprintf(filename, "war_gamesave%d.dat", saveFileChosen);
 			saveFile = fopen(filename, "r");
-
-			printf("1");
 
 			fscanf(saveFile, "%d\n", &roundNum);
 			fscanf(saveFile, "%d\n", &numPlayers);
 			fscanf(saveFile, "%d\n", &carryPoints);
 			for (j = 0; j < numPlayers; ++j) {
-				printf("%d ", j);
 				for (k = 0; k < 13; ++k) {
 					fscanf(saveFile, "%d %d, ", &players[j].deck[k].value, &players[j].deck[k].suit);
 				}
@@ -173,6 +186,9 @@ void main() {
 
 		printf("\n");
 		break;
+	case '3':
+		// exit the application
+		exit(0);
 	}
 
 	if (numPlayers == -1) {
@@ -180,10 +196,12 @@ void main() {
 		printf("Enter number of players playing (2-10): ");
 		scanf("%d", &numPlayers);
 		initPlayers(players, numPlayers);
+		roundNum = 1;
 	}
 	printf("\n");
 
-	for (roundNum = 1; roundNum <= 13; ++roundNum) {
+	// roundNum was already initialized (eiher by save file or new game) so leaving it out
+	for ( ; roundNum <= 13; ++roundNum) {
 		printf("-- Round %d --\n\n", roundNum);
 
 		for (playerTurn = 0; playerTurn < numPlayers; ++playerTurn) {
@@ -196,12 +214,13 @@ void main() {
 			chosenCard -= 2;
 
 			// print many newlines to hide the cards of this player from the other players
+			// (should be platform independant)
 			for (i = 0; i < 50; ++i) printf("\n");
 
 			// add the player's card to the competing cards for this round
 			chosenCards[playerTurn] = players[playerTurn].deck[chosenCard];
 
-			// remove that card from the player's hand
+			// "remove" that card from the player's hand
 			players[playerTurn].deck[chosenCard].suit = -1;
 			players[playerTurn].deck[chosenCard].value = -1;
 		}
@@ -209,7 +228,7 @@ void main() {
 		// show the cards the players chose
 		printf("-- Showdown! --\n");
 		for (i = 0; i < numPlayers; ++i) {
-			printf("Player %d chose %s.\n", (i + 1), getCardName(chosenCards[i]));
+			printf("Player %d chose the %s.\n", (i + 1), getCardName(chosenCards[i]));
 		}
 		printf("\n");
 
@@ -250,15 +269,16 @@ void main() {
 			// tie
 			printf("It's a tie! No winners this round.\n");
 
-			if (carryPoints == 0) {
-				printf("This round's pot of %d points will be carried over to the next round.\n", roundWinnings);
-				carryPoints = roundWinnings;
-			}
-			else {
-				printf("This is the second tie in a row!\n");
-				printf("%d points from last round plus %d points from this round (a total of %d) points are lost on the battlefield!\n",
+			if (roundNum == 13) {
+				printf("Because it's the final round,\n");
+				printf(" %d points from this round\n plus %d points carried from the previous round(s) (a total of %d) points\nare lost on the battlefield!\n",
 					roundWinnings, carryPoints, (roundWinnings + carryPoints));
 				carryPoints = 0;
+			}
+			else {
+				printf("This round's pot of %d points will be carried over to the next round.\n", roundWinnings);
+				carryPoints += roundWinnings;
+				printf("Total extra points for the next round: %d.\n", carryPoints);
 			}
 		}
 		else {
@@ -268,7 +288,7 @@ void main() {
 			printf("Points awarded (all chosen card values added together): %d\n", roundWinnings);
 
 			if (carryPoints != 0) {
-				printf(" + %d points carried over from the last round,\n", carryPoints);
+				printf(" + %d points carried over from the previous round(s),\n", carryPoints);
 				printf(" for a total of %d points.\n", (carryPoints + roundWinnings));
 			}
 
@@ -279,19 +299,28 @@ void main() {
 
 		printf("\n");
 
-		if (i != 13) {
+		if (roundNum != 13) { // no options if the game is already finished
 			printf("Press enter to continue to the next round.\n\n");
 			printf(" (more options:\n");
 			printf("  's' to save the game to be played at a later time\n");
 			printf("  'o' to output the current status of the game\n");
-			printf("  'e' to exit the game now without saving)\n\n");
+			printf("  'e' to exit this game)\n\n");
 
 			option = getch();
 
 			switch (option) {
 			case 's':
 				// save game
-				nextSaveID = getMetadataIndex();
+				
+				if (saveFileChosen == -1) {
+					// make a new save file
+					nextSaveID = getMetadataIndex();
+				}
+				else {
+					// This game is already from a save file.
+					// Write over that save file to avoid duplicating games.
+					nextSaveID = saveFileChosen;
+				}
 
 				sprintf(filename, "war_gamesave%d.dat", nextSaveID);
 				saveFile = fopen(filename, "w");
@@ -323,19 +352,19 @@ void main() {
 				getch();
 				break;
 			case 'e':
-				// exit the game without saving
-				goto endOfGame;
+				// exit this game
+				goto gameOptions;
 				break;
 			}
 		}
 		printf("\n\n");
 	}
 
-
 	printf("-- Game finished! --\n\n");
 	printf("Final scores:\n");
 
-	// TODO: account for ties
+	// initialize the winners array
+	for (i = 0; i < 10; ++i) winners[i] = -1;
 
 	for (i = 0; i < numPlayers; ++i) {
 		playerPoints = players[i].points;
@@ -346,9 +375,52 @@ void main() {
 		}
 	}
 
+	winners[0] = highestPointsPlayer;
+	winnerCounter = 1;
+
+	// check for tied 1st place
+	for (i = 0; i < numPlayers; ++i) {
+		playerPoints = players[i].points;
+
+		if (i == highestPointsPlayer) continue;
+
+		if (playerPoints == highestPoints) {
+			winners[winnerCounter++] = i;
+		}
+	}
+
 	displayScores(players, numPlayers);
 
-	printf("\nPlayer %d wins!\n\n", (highestPointsPlayer + 1));
+	if (winners[1] != -1) {
+		// tied first
+		printf("The game is tied!\n");
+		printf("The winners are players ");
+
+		for (i = 0; i < 10; ++i) {
+			if (i == 9 || winners[i + 1] == -1) {
+				printf("and %d.\n", (winners[i] + 1));
+				break;
+			}
+			else {
+				printf("%d", (winners[i] + 1));
+				if (!(i == 8 || winners[i + 2] == -1)) {
+					printf(",");
+				}
+				printf(" ");
+			}
+		}
+	}
+	else {
+		// only 1 winner (won outright)
+		printf("\nPlayer %d wins!\n", (highestPointsPlayer + 1));
+	}
+
+	printf("\n");
+
+	if (saveFileChosen != -1) {
+		// delete the save this game was loaded from
+		deleteSave(saveFileChosen);
+	}
 
 	endOfGame:;
 }
@@ -370,7 +442,7 @@ void initPlayers(struct Player players[], int numPlayers) {
 		do {
 			for (j = 0; j < 13; ++j) {
 				// initialize the suit
-				players[i].deck[j].suit = rand() % 4;
+				players[i].deck[j].suit = (rand() % 4);
 			}
 
 			// redo all the suits if the player doesn't have one of each suit
@@ -398,10 +470,10 @@ void displayPlayerDeck(struct Player player, int playerNum) {
 	printf("Your cards, player %d:\n", playerNum + 1);
 	for (i = 0; i < 13; ++i) {
 		if (player.deck[i].value == -1) {
-			printf("<card already used>\n");
+			printf(" <- card already used ->\n");
 		}
 		else {
-			printf("- Card [%d]: %s\n", (i + 2), getCardName(player.deck[i]));
+			printf(" Card no.[%d]: %s\n", (i + 2), getCardName(player.deck[i]));
 		}
 	}
 
@@ -428,7 +500,7 @@ int getMetadataIndex() {
 	metaFile = fopen("war_metadata.dat", "r");
 	if (metaFile) {
 		// file exists; check number of saves
-		fscanf(metaFile, "%d", &index);
+		fscanf(metaFile, "%d\n", &index);
 		fclose(metaFile);
 	}
 	else {
@@ -451,7 +523,14 @@ void incrementMetadataIndex() {
 		exit(1);
 	}
 
-	fprintf(metaFile, "%d", (metadataIndex + 1));
+	fprintf(metaFile, "%d\n", (metadataIndex + 1));
 
 	fclose(metaFile);
+}
+
+void deleteSave(int saveNum) {
+	char filename[20];
+
+	sprintf(filename, "war_gamesave%d.dat", saveNum);
+	remove(filename);
 }
